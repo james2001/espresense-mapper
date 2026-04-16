@@ -1,0 +1,20 @@
+{
+  "name": "espresense-mapper",
+  "version": "1.0.0",
+  "description": "Visual floor plan editor for ESPresense Companion configuration",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "lint": "eslint js/",
+    "lint:fix": "eslint js/ --fix",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "eslint": "^9.0.0",
+    "globals": "^15.0.0",
+    "jsdom": "^25.0.0",
+    "vitest": "^2.0.0"
+  },
+  "license": "MIT"
+}

@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ESPresense Mapper — Visual Floor Plan Editor</title>
+  <meta name="description" content="Draw rooms on your floor plan and generate ESPresense Companion configuration. Free, open-source, runs in your browser.">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <!-- Step 1: Upload / Homepage -->
+  <div id="step-upload" class="step active">
+    <div class="upload-container">
+      <div class="hero">
+        <h1>ESPresense Mapper</h1>
+        <p class="subtitle">Draw rooms on your floor plan and generate configuration for <a href="https://espresense.com/companion" target="_blank" rel="noopener">ESPresense Companion</a></p>
+      </div>
+
+      <div id="drop-zone" tabindex="0">
+        <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="17 8 12 3 7 8"/>
+          <line x1="12" y1="3" x2="12" y2="15"/>
+        </svg>
+        <p>Drop your floor plan here</p>
+        <p class="hint">or click to browse files</p>
+        <p class="hint">PNG, JPG, WebP, SVG</p>
+        <input type="file" id="file-input" accept="image/*" hidden>
+      </div>
+
+      <div class="features">
+        <div class="feature">
+          <div class="feature-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12h4m12 0h4M12 2v4m0 12v4"/><circle cx="12" cy="12" r="6"/></svg>
+          </div>
+          <h3>Calibrate</h3>
+          <p>Set the scale by tracing a known distance on your plan</p>
+        </div>
+        <div class="feature">
+          <div class="feature-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="1"/></svg>
+          </div>
+          <h3>Draw rooms</h3>
+          <p>Click to create room polygons directly on your floor plan</p>
+        </div>
+        <div class="feature">
+          <div class="feature-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="10" r="3"/><path d="M12 21.7C17.3 17 20 13 20 10a8 8 0 1 0-16 0c0 3 2.7 7 8 11.7z"/></svg>
+          </div>
+          <h3>Place nodes</h3>
+          <p>Position your ESP32 BLE nodes with precise coordinates</p>
+        </div>
+        <div class="feature">
+          <div class="feature-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+          </div>
+          <h3>Export YAML</h3>
+          <p>Generate ready-to-use config for ESPresense Companion</p>
+        </div>
+      </div>
+
+      <p class="footer-note">100% client-side — your data never leaves your browser</p>
+    </div>
+  </div>
+
+  <!-- Step 2: Calibration -->
+  <div id="step-calibrate" class="step">
+    <div class="calibrate-header">
+      <div class="calibrate-instructions">
+        <span class="step-badge">Calibration</span>
+        <span id="calibrate-text">Click two points with a known distance (e.g. a wall)</span>
+      </div>
+      <div id="calibrate-input" class="calibrate-input hidden">
+        <label>Real distance:</label>
+        <input type="number" id="calibrate-distance" step="0.01" min="0.1" placeholder="e.g. 3.5">
+        <span>meters</span>
+        <button id="calibrate-validate" class="btn btn-primary">Apply</button>
+      </div>
+      <button id="calibrate-skip" class="btn btn-ghost">Skip (1px = 1cm)</button>
+    </div>
+    <div class="canvas-wrapper">
+      <svg id="calibrate-svg" class="plan-svg"></svg>
+    </div>
+  </div>
+
+  <!-- Step 3: Editor -->
+  <div id="step-editor" class="step">
+    <div class="editor-layout">
+      <!-- Sidebar -->
+      <aside id="sidebar">
+        <div class="sidebar-section">
+          <h3>Floor</h3>
+          <div id="floor-tabs" class="floor-tabs"></div>
+          <button id="add-floor" class="btn btn-sm btn-ghost">+ Add floor</button>
+        </div>
+
+        <div class="sidebar-section">
+          <h3>Tools</h3>
+          <div class="tool-buttons">
+            <button class="tool-btn active" data-tool="select" title="Select (V)">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z"/></svg>
+              <span>Select</span>
+            </button>
+            <button class="tool-btn" data-tool="room" title="Draw a room (R)">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="1"/></svg>
+              <span>Room</span>
+            </button>
+            <button class="tool-btn" data-tool="node" title="Place a node (N)">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="10" r="3"/><path d="M12 21.7C17.3 17 20 13 20 10a8 8 0 1 0-16 0c0 3 2.7 7 8 11.7z"/></svg>
+              <span>Node</span>
+            </button>
+            <button class="tool-btn" data-tool="calibrate" title="Recalibrate (C)">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12h4m12 0h4M12 2v4m0 12v4"/><circle cx="12" cy="12" r="6"/></svg>
+              <span>Calibrate</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="sidebar-section">
+          <h3>Rooms</h3>
+          <ul id="room-list" class="item-list"></ul>
+        </div>
+
+        <div class="sidebar-section">
+          <h3>Nodes</h3>
+          <ul id="node-list" class="item-list"></ul>
+        </div>
+
+        <div class="sidebar-section sidebar-bottom">
+          <button id="btn-export" class="btn btn-primary btn-block">Export YAML</button>
+          <div class="btn-row">
+            <button id="btn-save" class="btn btn-sm btn-ghost">Save</button>
+            <button id="btn-load" class="btn btn-sm btn-ghost">Load</button>
+            <button id="btn-reset" class="btn btn-sm btn-danger">Reset</button>
+          </div>
+        </div>
+      </aside>
+
+      <!-- Main canvas -->
+      <div class="canvas-area">
+        <div class="canvas-toolbar">
+          <div class="coord-display">
+            <span id="cursor-coords">x: — y: —</span>
+          </div>
+          <div class="zoom-controls">
+            <button id="zoom-in" class="btn btn-sm btn-ghost">+</button>
+            <span id="zoom-level">100%</span>
+            <button id="zoom-out" class="btn btn-sm btn-ghost">-</button>
+            <button id="zoom-fit" class="btn btn-sm btn-ghost">Fit</button>
+            <label class="toggle-label">
+              <input type="checkbox" id="toggle-grid" checked> Grid
+            </label>
+          </div>
+        </div>
+        <div id="canvas-container" class="canvas-wrapper">
+          <svg id="editor-svg" class="plan-svg"></svg>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal -->
+  <div id="modal-overlay" class="modal-overlay hidden">
+    <div class="modal">
+      <h3 id="modal-title">Room name</h3>
+      <input type="text" id="modal-input" placeholder="e.g. Living Room" autofocus>
+      <div id="modal-extra"></div>
+      <div class="modal-actions">
+        <button id="modal-cancel" class="btn btn-ghost">Cancel</button>
+        <button id="modal-confirm" class="btn btn-primary">OK</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Export panel -->
+  <div id="export-panel" class="export-panel hidden">
+    <div class="export-header">
+      <h3>YAML Configuration</h3>
+      <button id="export-close" class="btn btn-ghost">Close</button>
+    </div>
+    <pre id="export-content" class="export-content"></pre>
+    <div class="export-actions">
+      <button id="export-copy" class="btn btn-primary">Copy</button>
+      <button id="export-download" class="btn btn-ghost">Download config.yaml</button>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/js-yaml@4.1.0/dist/js-yaml.min.js"></script>
+  <script src="js/storage.js"></script>
+  <script src="js/floors.js"></script>
+  <script src="js/upload.js"></script>
+  <script src="js/calibrate.js"></script>
+  <script src="js/editor.js"></script>
+  <script src="js/rooms.js"></script>
+  <script src="js/nodes.js"></script>
+  <script src="js/export.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
